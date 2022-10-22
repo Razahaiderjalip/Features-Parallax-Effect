@@ -1,0 +1,8 @@
+.env
+.github
+.git
+Dockerfile
+tests
+package-lock.json
+yarn.lock
+public/env.js

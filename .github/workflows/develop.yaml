@@ -1,0 +1,160 @@
+name: DEVELOP
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  Setup:
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE: ${{ steps.env.outputs.IMAGE }}
+      PROJECT: ${{ steps.env.outputs.PROJECT }}
+      CHART: ${{ steps.env.outputs.CHART }}
+      SUBCHART: ${{ steps.env.outputs.SUBCHART }}
+      LABEL: ${{ steps.env.outputs.LABEL }}
+      ENV: ${{ steps.env.outputs.ENV }}
+      VALUES_PATH: ${{steps.env.outputs.VALUES_PATH}}
+    steps:
+      - name: Environment Setup
+        id: env
+        shell: bash
+        run: |
+          REPO=${GITHUB_REPOSITORY,,}
+          IMAGE=ghcr.io/$REPO
+          echo ::set-output name=IMAGE::$IMAGE
+          PROJECT=$(echo "$REPO" | cut -d/ -f 2 | cut -d- -f 1)
+          echo ::set-output name=PROJECT::$PROJECT
+          CHART=$(echo "$REPO" | cut -d- -f 2)
+          echo ::set-output name=CHART::$CHART
+          SUBCHART=$(echo "$REPO" | cut -d- -f 3)
+          echo ::set-output name=SUBCHART::$SUBCHART
+          LABEL=$(echo "$REPO" | cut -d/ -f 2 | cut -d- -f -2)
+          echo ::set-output name=LABEL::$LABEL
+          ENV=develop
+          echo ::set-output name=ENV::$ENV
+          VALUES_PATH="$CHART/values-$ENV.yaml"
+          echo ::set-output name=VALUES_PATH::$VALUES_PATH
+
+
+  Build:
+    needs: [ Setup ]
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.ver.outputs.VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Repo
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: Aigotsrl
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ needs.Setup.outputs.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=develop-,format=short
+            type=raw,value=develop-{{date 'YYYYMMDDHHmm'}}
+
+      - name: Develop Version
+        id: ver
+        run: |
+          echo ::set-output name=VERSION::$(echo "${{ fromJSON(steps.meta.outputs.json).tags[2] }}" | cut -d ':' -f 2)
+
+      - name: Build args
+        id: args
+        run: |
+          echo "ARGS<<EOF" >> $GITHUB_ENV
+          cat .env.cluster >> $GITHUB_ENV
+          if [ -f .env.${{ needs.Setup.outputs.ENV }} ]; then
+            cat .env.${{ needs.Setup.outputs.ENV }} >> $GITHUB_ENV
+          fi
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            REACT_APP_NODE_ENV=${{ needs.Setup.outputs.ENV }}
+            ${{ env.ARGS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+  PushHelmChart:
+    needs: [ Setup, Build ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vault Github Secret
+        id: secrets
+        uses: hashicorp/vault-action@v2.4.1
+        with:
+          url: "https://vault.aigotsrl-dev.com"
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            ${{ needs.Setup.outputs.PROJECT }}-ci/data/GITHUB TOKEN | GITHUB_TOKEN
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: "Aigotsrl/${{ needs.Setup.outputs.PROJECT }}-HelmCharts"
+          ref: main
+          token: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Changes to Helm Chart
+        run: |
+          sed -Ei 's!(\s*${{ needs.Setup.outputs.SUBCHART }}Tag\:) (.*)!\1 ${{ needs.Build.outputs.VERSION }}!i' ${{ needs.Setup.outputs.VALUES_PATH }}
+
+      - name: Commit files
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -m "[CI] ${GITHUB_REPOSITORY} - ${GITHUB_WORKFLOW}: ${{ needs.Build.outputs.VERSION }}" -a
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
+          branch: main
+          repository: "Aigotsrl/${{ needs.Setup.outputs.PROJECT }}-HelmCharts"
+
+
+  ArgoSync:
+    needs: [ Setup, Build, PushHelmChart ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vault Argo Secret
+        id: secrets
+        uses: hashicorp/vault-action@v2.4.1
+        with:
+          url: "https://vault.aigotsrl-dev.com"
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            ${{ needs.Setup.outputs.PROJECT }}-ci/data/GITHUB TOKEN | GITHUB_TOKEN ;
+            ${{ needs.Setup.outputs.PROJECT }}-ci/data/develop/ARGOCD TOKEN | ARGOCD_TOKEN
+
+      - name: Argo Sync
+        uses: clowdhaus/argo-cd-action@v1.9.0
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
+        with:
+          command: app sync
+          options: --server argo.develop.aigotsrl-dev.com --grpc-web --grpc-web-root-path / --auth-token ${{ steps.secrets.outputs.ARGOCD_TOKEN }} --async -l chart=${{ needs.Setup.outputs.LABEL }}

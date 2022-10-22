@@ -1,0 +1,48 @@
+
+#faq .MuiSvgIcon-root {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  width: 77px;
+  height: 77px;
+  display: inline-block;
+  fill: currentColor;
+  -webkit-flex-shrink: 0;
+  -ms-flex-negative: 0;
+  flex-shrink: 0;
+  -webkit-transition: fill 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  transition: fill 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  font-size: 1.5rem;
+  color: transparent;
+  background-image: url("../Home/Img/Keyboard_arrow.svg");
+  transform: rotate(90deg);
+  margin-top: 25px;
+}
+
+#faq th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border: 0px solid #4fb1ca;
+  text-align: center;
+  padding: 8px;
+}
+
+#faq td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: center;
+  border: 0px solid #ca4f97;
+}
+
+#tabella table {
+  box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+  -webkit-box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+  -moz-box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+}
+
+#accorditionid .MuiAccordion-root:before {
+
+  background-color: transparent !important;
+
+}

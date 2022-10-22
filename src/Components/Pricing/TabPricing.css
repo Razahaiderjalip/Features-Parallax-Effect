@@ -1,0 +1,27 @@
+#pricing th {
+   
+    border-top: 7px solid transparent;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    margin-left: 50px;
+    text-align: center;
+
+  }
+  
+  #pricing td {
+    border-top: 0px solid transparent;
+    border-left: 0px solid transparent;
+    border-right: 0px solid transparent;
+    
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: center;
+    
+  }
+  
+  #pricing table {
+    box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+    -webkit-box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+    -moz-box-shadow: 11px 9px 0px -1px rgba(255, 255, 255, 0);
+  }
+  

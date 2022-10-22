@@ -1,0 +1,41 @@
+#accordition .accorditionelement {
+
+    
+    border-left-width: 4px;
+    border-color: #DCFFCF;
+
+   
+    padding-left: 30px;
+
+}
+
+#accordition .Mui-expanded {
+    margin: 16px 0;
+    border-color: #00B27A;
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+
+}
+
+
+#accordition .MuiAccordion-root:first-of-type {
+
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+ 
+
+}
+
+#accordition .MuiAccordion-root:last-of-type {
+    
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+ 
+
+}
+
+#accordition .MuiAccordion-root:before {
+
+    background-color: transparent;
+
+}
